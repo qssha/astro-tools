@@ -18,8 +18,8 @@ def main():
     Scl_ht = 0.022
     rmax = 200 * Rstar
     R = np.linspace(Rstar, rmax, num = 1000)
-    velocity = np.array(map(lambda x: simple_beta_law(Vcore, V0, 325, 4.0, Scl_ht, Rstar, x), R))
-    velocity2 = np.array(map(lambda x: simple_beta_law(Vcore, V0, 388, 4.5, Scl_ht, Rstar, x), R))
+    velocity = np.array([simple_beta_law(Vcore, V0, 325, 4.0, Scl_ht, Rstar, r) for r in R])
+    velocity2 = np.array([simple_beta_law(Vcore, V0, 388, 4.5, Scl_ht, Rstar, r) for r in  R])
 
     #velocity3 = np.array(map(lambda x: double_beta_law(Vcore, V0, 50, Vinf, 0.9, beta, Scl_ht, Rstar, x), R))
 
