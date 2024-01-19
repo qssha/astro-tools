@@ -48,8 +48,32 @@ def modify_eddfactor(file_dir, ND, full_x_ray_lum, x_ray_source_orbit_radius, lo
 
     return eddfactor_array
 
+def calc_tau(radius, chi, f_clumping):
+    # prob will be better to adjust chi units before passing to func
+    chi = chi * f_clumping / 10**10
+
+    mean_chi = np.array([(chi[i - 1] + chi[i]) / 2 for i in range(1, len(chi))])
+    delta_rad = np.array([radius[i - 1] - radius[i] for i in range(1, len(radius))]) # alternative is np.abs(np.diff(rad))
+    delta_tau = mean_chi * delta_rad
+    tau_at_outer_boundary = calc_tau_at_outer_boundary(radius, chi)
+    tau_at_each_depth = np.cumsum(np.insert(delta_tau, 0, tau_at_outer_boundary))
+
+    return tau_at_each_depth
+
+def calc_tau_at_outer_boundary(radius, chi):
+    t1_param_outer_boundary = np.log10(np.abs(chi[0] / chi[3])) / np.log10(radius[3] / radius[0])
+
+    if t1_param_outer_boundary < 2:
+        t1_param_outer_boundary = 2
+
+    tau_outer_boundary = radius[0] * chi[0] / (t1_param_outer_boundary - 1)
+
+    return tau_outer_boundary
+
+"""
 file_dir = "."
 ND = 55
 
 eddfactor_array_mod = modify_eddfactor(file_dir, ND, 5 * 10**40, 9.4 * 10**12)
 eddfactor_array_mod.tofile("EDDFACTOR_MOD")
+"""
