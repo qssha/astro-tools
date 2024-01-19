@@ -25,10 +25,13 @@ def parse_eddfactor_file(file_dir, ND):
 def x_ray_mean_intensity(x_ray_lum, distance, delta_tau):
     return (x_ray_lum / (16 * np.pi**2 * distance**2)) * np.exp(-delta_tau)
 
-def get_uniform_x_ray_lum(full_x_ray_lum):
-    return full_x_ray_lum / (SPEED_OF_LIGHT_CGS * 0.999 / (10**-8))
+def get_uniform_x_ray_lum(full_x_ray_lum, freq_range):
+    return full_x_ray_lum / freq_range
 
-def modify_eddfactor(file_dir, ND, full_x_ray_lum, x_ray_source_orbit_radius, low_freq_limit=3.2862121381578944 * 10**15, high_freq_limit=3.7462818375 * 10**15):
+def modify_eddfactor(file_dir, ND, full_x_ray_lum, x_ray_source_orbit_radius, low_wavelength_limit_ang=800, high_wavelength_limit_ang=912):
+    low_freq_limit = SPEED_OF_LIGHT_CGS / (high_wavelength_limit_ang * 10**-8)
+    high_freq_limit = SPEED_OF_LIGHT_CGS / (low_wavelength_limit_ang * 10**-8)
+
     meanopac_data_frame = parse_meanopac(file_dir, ND)
     meanopac_data_frame['R'] = meanopac_data_frame['R'] * 10**10
     tau_es_interp = interpolate.interp1d(meanopac_data_frame['R'], meanopac_data_frame['Tau(es)'])
@@ -39,12 +42,10 @@ def modify_eddfactor(file_dir, ND, full_x_ray_lum, x_ray_source_orbit_radius, lo
     eddfactor_array = parse_eddfactor_file(file_dir, ND)
 
     # Uniform law
-    mean_intensity_for_uniform_lum = lambda delta_distance, delta_tau: x_ray_mean_intensity(get_uniform_x_ray_lum(full_x_ray_lum), delta_distance, delta_tau)
-    print(mean_intensity_for_uniform_lum(delta_distance_array, delta_tau_es_array))
+    mean_intensity_for_uniform_lum = lambda delta_distance, delta_tau: x_ray_mean_intensity(get_uniform_x_ray_lum(full_x_ray_lum, high_freq_limit - low_freq_limit), delta_distance, delta_tau)
     eddfactor_array[(eddfactor_array[:, -1] > low_freq_limit / 10**15) & (eddfactor_array[:, -1] < high_freq_limit / 10**15), :-1] += mean_intensity_for_uniform_lum(delta_distance_array, delta_tau_es_array) 
     #
 
-    #return mean_intensity_for_uniform_lum(delta_distance_array, delta_tau_es_array) 
     return eddfactor_array
 
 file_dir = "."
