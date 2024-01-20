@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate
 
+import math
+
 SPEED_OF_LIGHT_CGS = 2.99702547 * 10**10
 
 def get_lines_from_file_by_number(file_to_process, line_numbers):
@@ -16,11 +18,29 @@ def parse_meanopac(file_dir, ND):
     meanopac_data_frame = pd.DataFrame(meanopac_data, columns=data_frame_header)
     return meanopac_data_frame.astype("float64")
 
-# TODO parse rvtj for clumping values
 def parse_direct_access_file(file_path, ND):
     dtype_string = "(" + str(ND + 1) + ",)float64"
     direct_access_file_array = np.fromfile(file_path, dtype=dtype_string)
     return direct_access_file_array
+
+def parse_rvtj_file(file_dir):
+    file_path = file_dir + "/RVTJ"
+    rvtj_first_file_lines = get_lines_from_file_by_number(file_path, list(range(4)))
+    ND = int(rvtj_first_file_lines[3].split()[1])
+    num_of_columns = math.ceil(ND / 8)
+    num_of_first_entry_line = 12
+    num_of_params = 20
+
+    rvtj_file_lines = get_lines_from_file_by_number(file_path,
+                                                    list(range(num_of_first_entry_line,
+                                                               num_of_first_entry_line + (num_of_columns + 1) * num_of_params)))
+    rvtj_data_frame = pd.DataFrame()
+
+    for i in range(0, (num_of_columns + 1) * num_of_params, num_of_columns + 1):
+        extracted_data = []
+        [extracted_data.extend(data.split()) for data in rvtj_file_lines[i + 1:i + num_of_columns + 1]]
+        rvtj_data_frame[rvtj_file_lines[i].strip()] = extracted_data
+    return ND, rvtj_data_frame.astype("float64")
 
 def calc_tau(radius, chi, f_clumping):
     # prob will be better to adjust chi units before passing to func
