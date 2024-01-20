@@ -17,12 +17,10 @@ def parse_meanopac(file_dir, ND):
     return meanopac_data_frame.astype("float64")
 
 # TODO parse rvtj for clumping values
-# read direct access file (e.g. EDDFACTOR, chi..)
-def parse_eddfactor_file(file_dir, ND):
-    file_path = file_dir + "/EDDFACTOR"
+def parse_direct_access_file(file_path, ND):
     dtype_string = "(" + str(ND + 1) + ",)float64"
-    eddfactor_array = np.fromfile(file_path, dtype=dtype_string)
-    return eddfactor_array
+    direct_access_file_array = np.fromfile(file_path, dtype=dtype_string)
+    return direct_access_file_array
 
 def calc_tau(radius, chi, f_clumping):
     # prob will be better to adjust chi units before passing to func
@@ -63,7 +61,7 @@ def modify_eddfactor(file_dir, ND, full_x_ray_lum, x_ray_source_orbit_radius, lo
     delta_distance_array = np.abs(x_ray_source_orbit_radius - meanopac_data_frame['R'])
     delta_tau_es_array = np.abs(tau_es_interp(x_ray_source_orbit_radius) - meanopac_data_frame['Tau(es)'])
 
-    eddfactor_array = parse_eddfactor_file(file_dir, ND)
+    eddfactor_array = parse_direct_access_file(file_dir + "/EDDFACTOR", ND)
 
     # Uniform law
     mean_intensity_for_uniform_lum = lambda delta_distance, delta_tau: x_ray_mean_intensity(get_uniform_x_ray_lum(full_x_ray_lum, high_freq_limit - low_freq_limit), delta_distance, delta_tau)
