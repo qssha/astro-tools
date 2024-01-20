@@ -77,9 +77,12 @@ def get_lum_at_freq(lum_norm_constant, gamma, freq):
     return lum_norm_constant * freq**-gamma
 
 #TODO switch for scattering and tau per freq mode
-def modify_eddfactor(file_dir, ND, full_x_ray_lum, x_ray_source_orbit_radius, low_wavelength_limit_ang=800, high_wavelength_limit_ang=912):
+def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius, ND, low_wavelength_limit_ang=1, high_wavelength_limit_ang=912):
     low_freq_limit = SPEED_OF_LIGHT_CGS / (high_wavelength_limit_ang * 10**-8)
     high_freq_limit = SPEED_OF_LIGHT_CGS / (low_wavelength_limit_ang * 10**-8)
+
+    #ND, rvtj_df = parse_rvtj_file(".")
+    #f_clumping = rvtj_df['Clumping Factor']
 
     meanopac_data_frame = parse_meanopac(file_dir, ND)
     meanopac_data_frame['R'] = meanopac_data_frame['R'] * 10**10
@@ -90,17 +93,21 @@ def modify_eddfactor(file_dir, ND, full_x_ray_lum, x_ray_source_orbit_radius, lo
 
     eddfactor_array = parse_direct_access_file(file_dir + "/EDDFACTOR", ND)
 
-    # Uniform law
-    mean_intensity_for_uniform_lum = lambda delta_distance, delta_tau: x_ray_mean_intensity(get_uniform_x_ray_lum(full_x_ray_lum, high_freq_limit - low_freq_limit), delta_distance, delta_tau)
-    eddfactor_array[(eddfactor_array[:, -1] > low_freq_limit / 10**15) & (eddfactor_array[:, -1] < high_freq_limit / 10**15), :-1] += mean_intensity_for_uniform_lum(delta_distance_array, delta_tau_es_array) 
-    #
+    freq_indexes = np.where((eddfactor_array[:, -1] > low_freq_limit / 10**15) & (eddfactor_array[:, -1] < high_freq_limit / 10**15))
+    frequencies = eddfactor_array[freq_indexes, -1][0] * 10**15
+
+    lum_norm_constant = get_lum_norm_constant(full_x_ray_lum, gamma, low_freq_limit, high_freq_limit)
+    lum_per_freq = get_lum_at_freq(lum_norm_constant, gamma, frequencies)
+
+    calc_mean_intensities_for_scattering = lambda lum: x_ray_mean_intensity(lum, delta_distance_array, delta_tau_es_array)
+    mean_intensities =  np.array(list(map(calc_mean_intensities_for_scattering, lum_per_freq)))
+
+    eddfactor_array[freq_indexes, :-1] += mean_intensities
 
     return eddfactor_array
 
-"""
 file_dir = "."
 ND = 55
 
-eddfactor_array_mod = modify_eddfactor(file_dir, ND, 5 * 10**40, 9.4 * 10**12)
-eddfactor_array_mod.tofile("EDDFACTOR_MOD")
-"""
+eddfactor_array_mod = modify_eddfactor(file_dir, 3 * 10**39, 0, 9.4 * 10**12, ND)
+#eddfactor_array_mod.tofile("EDDFACTOR_MOD")
