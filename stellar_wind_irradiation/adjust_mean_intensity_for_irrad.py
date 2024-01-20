@@ -67,9 +67,16 @@ def calc_tau_at_outer_boundary(radius, chi):
 def x_ray_mean_intensity(x_ray_lum, distance, delta_tau):
     return (x_ray_lum / (16 * np.pi**2 * distance**2)) * np.exp(-delta_tau)
 
-def get_uniform_x_ray_lum(full_x_ray_lum, freq_range):
-    return full_x_ray_lum / freq_range
+def get_lum_norm_constant(full_x_ray_lum, gamma, low_freq_limit, high_freq_limit):
+    if gamma != 1:
+        return full_x_ray_lum * (-gamma + 1) / (high_freq_limit**(-gamma + 1) - low_freq_limit**(-gamma + 1))
+    else:
+        return full_x_ray_lum  / (np.log(high_freq_limit) - np.log(low_freq_limit))
 
+def get_lum_at_freq(lum_norm_constant, gamma, freq):
+    return lum_norm_constant * freq**-gamma
+
+#TODO switch for scattering and tau per freq mode
 def modify_eddfactor(file_dir, ND, full_x_ray_lum, x_ray_source_orbit_radius, low_wavelength_limit_ang=800, high_wavelength_limit_ang=912):
     low_freq_limit = SPEED_OF_LIGHT_CGS / (high_wavelength_limit_ang * 10**-8)
     high_freq_limit = SPEED_OF_LIGHT_CGS / (low_wavelength_limit_ang * 10**-8)
