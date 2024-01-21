@@ -23,9 +23,12 @@ def parse_direct_access_file(file_path, ND):
     direct_access_file_array = np.fromfile(file_path, dtype=dtype_string)
     return direct_access_file_array
 
-def calc_tau(radius, chi, f_clumping):
+def calc_tau(radius, chi, f_clumping=None):
     # prob will be better to adjust chi units before passing to func
-    chi = chi * f_clumping / 10**10
+    chi = chi / 10**10
+
+    if f_clumping is not None:
+        chi *= f_clumping
 
     mean_chi = np.array([(chi[i - 1] + chi[i]) / 2 for i in range(1, len(chi))])
     delta_rad = np.array([radius[i - 1] - radius[i] for i in range(1, len(radius))]) # alternative is np.abs(np.diff(rad))
@@ -71,7 +74,11 @@ def irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_or
     return mean_intensities
 
 def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, wind_radius, chi_data):
-    pass
+    """
+    chi_selected = None
+    calc_tau_per_freq = lambda chi_per_freq: calc_tau(wind_radius, chi_per_freq)
+    tau_data = np.array(list(map(calc_tau_per_freq, chi_data)))
+    """
 
 def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius, ND, tau_es_mode=True, low_wavelength_limit_ang=300, high_wavelength_limit_ang=912):
     low_freq_limit = SPEED_OF_LIGHT_CGS / (high_wavelength_limit_ang * 10**-8)
@@ -81,8 +88,8 @@ def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius,
     wind_radius = meanopac_df['R'] * 10**10
 
     eddfactor_array = parse_direct_access_file(file_dir + "/EDDFACTOR", ND)
-    freq_indexes = np.where((eddfactor_array[:, -1] > low_freq_limit / 10**15) & (eddfactor_array[:, -1] < high_freq_limit / 10**15))
-    frequencies = eddfactor_array[freq_indexes, -1][0] * 10**15
+    freq_indexes = np.where((eddfactor_array[:, -1] > low_freq_limit / 10**15) & (eddfactor_array[:, -1] < high_freq_limit / 10**15))[0]
+    frequencies = eddfactor_array[freq_indexes, -1] * 10**15
 
     if tau_es_mode:
         tau_es = meanopac_df['Tau(es)']
