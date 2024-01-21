@@ -23,25 +23,6 @@ def parse_direct_access_file(file_path, ND):
     direct_access_file_array = np.fromfile(file_path, dtype=dtype_string)
     return direct_access_file_array
 
-def parse_rvtj_file(file_dir):
-    file_path = file_dir + "/RVTJ"
-    rvtj_first_file_lines = get_lines_from_file_by_number(file_path, list(range(4)))
-    ND = int(rvtj_first_file_lines[3].split()[1])
-    num_of_columns = math.ceil(ND / 8)
-    num_of_first_entry_line = 12
-    num_of_params = 20
-
-    rvtj_file_lines = get_lines_from_file_by_number(file_path,
-                                                    list(range(num_of_first_entry_line,
-                                                               num_of_first_entry_line + (num_of_columns + 1) * num_of_params)))
-    rvtj_data_frame = pd.DataFrame()
-
-    for i in range(0, (num_of_columns + 1) * num_of_params, num_of_columns + 1):
-        extracted_data = []
-        [extracted_data.extend(data.split()) for data in rvtj_file_lines[i + 1:i + num_of_columns + 1]]
-        rvtj_data_frame[rvtj_file_lines[i].strip()] = extracted_data
-    return ND, rvtj_data_frame.astype("float64")
-
 def calc_tau(radius, chi, f_clumping):
     # prob will be better to adjust chi units before passing to func
     chi = chi * f_clumping / 10**10
@@ -76,11 +57,10 @@ def get_lum_norm_constant(full_x_ray_lum, gamma, low_freq_limit, high_freq_limit
 def get_lum_at_freq(lum_norm_constant, gamma, freq):
     return lum_norm_constant * freq**-gamma
 
-def irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, meanopac_df):
-    wind_radius = meanopac_df['R'] * 10**10
-    tau_es_interp = interpolate.interp1d(wind_radius, meanopac_df['Tau(es)'])
+def irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, wind_radius, tau_es):
+    tau_es_interp = interpolate.interp1d(wind_radius, tau_es)
     delta_distance_array = np.abs(x_ray_source_orbit_radius - wind_radius)
-    delta_tau_es_array = np.abs(tau_es_interp(x_ray_source_orbit_radius) - meanopac_df['Tau(es)'])
+    delta_tau_es_array = np.abs(tau_es_interp(x_ray_source_orbit_radius) - tau_es)
 
     lum_norm_constant = get_lum_norm_constant(full_x_ray_lum, gamma, low_freq_limit, high_freq_limit)
     lum_per_freq = get_lum_at_freq(lum_norm_constant, gamma, frequencies)
@@ -90,32 +70,32 @@ def irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_or
 
     return mean_intensities
 
-def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, rvtj_df):
-    wind_radius = rvtj_df['Radius (10^10 cm)'] * 10**10
-    f_clumping = rvtj_df['Clumping Factor']
+def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, wind_radius, chi_data):
+    pass
 
-def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius, tau_es_mode=True, low_wavelength_limit_ang=300, high_wavelength_limit_ang=912):
+def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius, ND, tau_es_mode=True, low_wavelength_limit_ang=300, high_wavelength_limit_ang=912):
     low_freq_limit = SPEED_OF_LIGHT_CGS / (high_wavelength_limit_ang * 10**-8)
     high_freq_limit = SPEED_OF_LIGHT_CGS / (low_wavelength_limit_ang * 10**-8)
 
-    ND, rvtj_df = parse_rvtj_file(file_dir)
+    meanopac_df = parse_meanopac(file_dir, ND)
+    wind_radius = meanopac_df['R'] * 10**10
 
     eddfactor_array = parse_direct_access_file(file_dir + "/EDDFACTOR", ND)
-
     freq_indexes = np.where((eddfactor_array[:, -1] > low_freq_limit / 10**15) & (eddfactor_array[:, -1] < high_freq_limit / 10**15))
     frequencies = eddfactor_array[freq_indexes, -1][0] * 10**15
 
     if tau_es_mode:
-        meanopac_df = parse_meanopac(file_dir, ND)
-        mean_intensities = irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, meanopac_df)
+        tau_es = meanopac_df['Tau(es)']
+        mean_intensities = irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, wind_radius, tau_es)
     else:
-        mean_intensities = irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, rvtj_df)
+        chi_data = parse_direct_access_file(file_dir + "/CHI_DATA_FIN", ND)
+        mean_intensities = irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, wind_radius, chi_data)
 
     eddfactor_array[freq_indexes, :-1] += mean_intensities
     return eddfactor_array
 
-
+ND = 55
 file_dir = "."
 
-eddfactor_array_mod = modify_eddfactor(file_dir, 5 * 10**40, 0, 9.4 * 10**12)
+eddfactor_array_mod = modify_eddfactor(file_dir, 5 * 10**40, 0, 9.4 * 10**12, ND)
 #eddfactor_array_mod.tofile("EDDFACTOR_MOD")
