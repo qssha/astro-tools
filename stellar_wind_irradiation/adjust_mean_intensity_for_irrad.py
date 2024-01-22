@@ -73,12 +73,25 @@ def irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_or
 
     return mean_intensities
 
-def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, wind_radius, chi_data):
-    """
-    chi_selected = None
+def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, freq_indexes, frequencies, wind_radius, chi_data):
+    chi_selected = chi_data[freq_indexes, :-1]
     calc_tau_per_freq = lambda chi_per_freq: calc_tau(wind_radius, chi_per_freq)
-    tau_data = np.array(list(map(calc_tau_per_freq, chi_data)))
-    """
+    tau_data = np.array(list(map(calc_tau_per_freq, chi_selected)))
+
+    calc_tau_at_source = lambda tau_data_per_freq: interpolate.interp1d(wind_radius, tau_data_per_freq)(x_ray_source_orbit_radius)
+    tau_at_source = np.array(list(map(calc_tau_at_source, tau_data)))
+
+    delta_distance = np.abs(x_ray_source_orbit_radius - wind_radius)
+    #TODO refactoring
+    delta_tau = np.array([np.abs(tau_data_per_freq - tau_at_source_per_freq) for tau_data_per_freq, tau_at_source_per_freq in zip(tau_data, tau_at_source)])
+
+    lum_norm_constant = get_lum_norm_constant(full_x_ray_lum, gamma, low_freq_limit, high_freq_limit)
+    lum_per_freq = get_lum_at_freq(lum_norm_constant, gamma, frequencies)
+
+    calc_mean_intensities = lambda lum, delta_tau: x_ray_mean_intensity(lum, delta_distance, delta_tau)
+    mean_intensities = np.array(list(map(calc_mean_intensities, lum_per_freq, delta_tau)))
+
+    return mean_intensities
 
 def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius, ND, tau_es_mode=True, low_wavelength_limit_ang=300, high_wavelength_limit_ang=912):
     low_freq_limit = SPEED_OF_LIGHT_CGS / (high_wavelength_limit_ang * 10**-8)
@@ -96,7 +109,8 @@ def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius,
         mean_intensities = irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, wind_radius, tau_es)
     else:
         chi_data = parse_direct_access_file(file_dir + "/CHI_DATA_FIN", ND)
-        mean_intensities = irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, frequencies, wind_radius, chi_data)
+        mean_intensities = irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, freq_indexes, frequencies, wind_radius, chi_data)
+        return mean_intensities
 
     eddfactor_array[freq_indexes, :-1] += mean_intensities
     return eddfactor_array
@@ -104,5 +118,5 @@ def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius,
 ND = 55
 file_dir = "."
 
-eddfactor_array_mod = modify_eddfactor(file_dir, 5 * 10**40, 0, 9.4 * 10**12, ND)
+eddfactor_array_mod = modify_eddfactor(file_dir, 5 * 10**40, 0, 9.4 * 10**12, ND, False)
 #eddfactor_array_mod.tofile("EDDFACTOR_MOD")
