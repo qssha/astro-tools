@@ -82,8 +82,7 @@ def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low
     tau_at_source = np.array(list(map(calc_tau_at_source, tau_data)))
 
     delta_distance = np.abs(x_ray_source_orbit_radius - wind_radius)
-    #TODO refactoring
-    delta_tau = np.array([np.abs(tau_data_per_freq - tau_at_source_per_freq) for tau_data_per_freq, tau_at_source_per_freq in zip(tau_data, tau_at_source)])
+    delta_tau = np.array([np.abs(tau_at_source_per_freq - tau_data_per_freq) for tau_at_source_per_freq, tau_data_per_freq in zip(tau_at_source, tau_data)])
 
     lum_norm_constant = get_lum_norm_constant(full_x_ray_lum, gamma, low_freq_limit, high_freq_limit)
     lum_per_freq = get_lum_at_freq(lum_norm_constant, gamma, frequencies)
@@ -93,7 +92,7 @@ def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low
 
     return mean_intensities
 
-def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius, ND, tau_es_mode=True, low_wavelength_limit_ang=300, high_wavelength_limit_ang=912):
+def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius, ND, tau_es_mode=True, low_wavelength_limit_ang=1.0, high_wavelength_limit_ang=200):
     low_freq_limit = SPEED_OF_LIGHT_CGS / (high_wavelength_limit_ang * 10**-8)
     high_freq_limit = SPEED_OF_LIGHT_CGS / (low_wavelength_limit_ang * 10**-8)
 
@@ -110,7 +109,6 @@ def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius,
     else:
         chi_data = parse_direct_access_file(file_dir + "/CHI_DATA_FIN", ND)
         mean_intensities = irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, freq_indexes, frequencies, wind_radius, chi_data)
-        return mean_intensities
 
     eddfactor_array[freq_indexes, :-1] += mean_intensities
     return eddfactor_array
@@ -118,5 +116,5 @@ def modify_eddfactor(file_dir, full_x_ray_lum, gamma, x_ray_source_orbit_radius,
 ND = 55
 file_dir = "."
 
-eddfactor_array_mod = modify_eddfactor(file_dir, 5 * 10**40, 0, 9.4 * 10**12, ND, False)
-#eddfactor_array_mod.tofile("EDDFACTOR_MOD")
+eddfactor_array_mod = modify_eddfactor(file_dir, 3 * 10**39, 0, 9.4 * 10**12, ND, False)
+eddfactor_array_mod.tofile("EDDFACTOR_MOD")
