@@ -68,18 +68,15 @@ def irrad_mean_intesities_for_tau_es_mode(full_x_ray_lum, gamma, x_ray_source_or
     lum_norm_constant = get_lum_norm_constant(full_x_ray_lum, gamma, low_freq_limit, high_freq_limit)
     lum_per_freq = get_lum_at_freq(lum_norm_constant, gamma, frequencies)
 
-    calc_mean_intensities_for_scattering = lambda lum: x_ray_mean_intensity(lum, delta_distance_array, delta_tau_es_array)
-    mean_intensities =  np.array(list(map(calc_mean_intensities_for_scattering, lum_per_freq)))
+    mean_intensities = np.array([x_ray_mean_intensity(lum, delta_distance_array, delta_tau_es_array) for lum in lum_per_freq])
 
     return mean_intensities
 
 def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low_freq_limit, high_freq_limit, freq_indexes, frequencies, wind_radius, chi_data):
     chi_selected = chi_data[freq_indexes, :-1]
-    calc_tau_per_freq = lambda chi_per_freq: calc_tau(wind_radius, chi_per_freq)
-    tau_data = np.array(list(map(calc_tau_per_freq, chi_selected)))
+    tau_data = np.array([calc_tau(wind_radius, chi_per_freq) for chi_per_freq in chi_selected])
 
-    calc_tau_at_source = lambda tau_data_per_freq: interpolate.interp1d(wind_radius, tau_data_per_freq)(x_ray_source_orbit_radius)
-    tau_at_source = np.array(list(map(calc_tau_at_source, tau_data)))
+    tau_at_source = np.array([interpolate.interp1d(wind_radius, tau_data_per_freq)(x_ray_source_orbit_radius) for tau_data_per_freq in tau_data])
 
     delta_distance = np.abs(x_ray_source_orbit_radius - wind_radius)
     delta_tau = np.array([np.abs(tau_at_source_per_freq - tau_data_per_freq) for tau_at_source_per_freq, tau_data_per_freq in zip(tau_at_source, tau_data)])
@@ -87,8 +84,7 @@ def irrad_mean_intensities(full_x_ray_lum, gamma, x_ray_source_orbit_radius, low
     lum_norm_constant = get_lum_norm_constant(full_x_ray_lum, gamma, low_freq_limit, high_freq_limit)
     lum_per_freq = get_lum_at_freq(lum_norm_constant, gamma, frequencies)
 
-    calc_mean_intensities = lambda lum, delta_tau: x_ray_mean_intensity(lum, delta_distance, delta_tau)
-    mean_intensities = np.array(list(map(calc_mean_intensities, lum_per_freq, delta_tau)))
+    mean_intensities = np.array([x_ray_mean_intensity(lum, delta_distance, tau) for lum, tau in zip(lum_per_freq, delta_tau)])
 
     return mean_intensities
 
