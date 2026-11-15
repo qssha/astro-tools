@@ -77,3 +77,27 @@ chi_selected *= (1 - np.exp(-tau_cl)) / tau_cl
 wave, flux = compute_spectrum(frequencies, chi_selected, eta_selected, r_vector, v_wind, L_star, v_unit=1.0)
 np.savetxt("model_spec", np.transpose([wave, flux]))
 
+"""
+### First check - comparison with black_body
+
+from calc_bb import star_blackbody_spectrum
+
+### Calling formal integral with zero chi/eta and then compare with BB
+chi_test = np.zeros_like(chi_selected)
+eta_test = np.zeros_like(eta_selected)
+
+####
+
+### Compute BB spectrum
+wave_bb, flux_bb = star_blackbody_spectrum(
+    L_star_solar=L_star,
+    R_star_cm=r_vector[0],
+    wavelengths_angstrom=np.geomspace(low_wavelength_limit_ang, high_wavelength_limit_ang, 100),
+    distance_kpc=1.0,
+)
+
+np.savetxt("model_spec_bb", np.transpose([wave_bb, flux_bb]))
+"""
+
+####
+
